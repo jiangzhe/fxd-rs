@@ -1,10 +1,10 @@
-mod decimal;
 mod arith;
 mod cmp;
-mod serde;
+mod decimal;
 mod error;
 mod round;
+mod serde;
 pub(crate) mod utils;
 
-pub use error::{Result, Error};
 pub use decimal::FixedDecimal;
+pub use error::{Error, Result};

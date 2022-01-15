@@ -1,11 +1,10 @@
-use crate::decimal::{FixedDecimal, MAX_DIGITS, MAX_FRAC, DIGITS_PER_UNIT};
-use crate::error::{Result, Error};
-use crate::utils::{BIN_HIGH_UNIT, BIN_MID_UNIT, POW10, BIN2CHAR, d3_to_str, get_units, mod9};
-
+use crate::decimal::{FixedDecimal, DIGITS_PER_UNIT, MAX_DIGITS, MAX_FRAC};
+use crate::error::{Error, Result};
+use crate::utils::{d3_to_str, get_units, mod9, BIN2CHAR, BIN_HIGH_UNIT, BIN_MID_UNIT, POW10};
 use std::cmp::Ordering;
+use std::str::FromStr;
 
 impl FixedDecimal {
-    
     /// parses numeric string and updates decimal value
     #[inline]
     pub fn from_ascii_str(&mut self, s: &str, reset: bool) -> Result<()> {
@@ -13,12 +12,13 @@ impl FixedDecimal {
     }
 
     /// parses numeric string and updates decimal value
+    #[inline]
     pub fn from_bytes_str(&mut self, bs: &[u8], reset: bool) -> Result<()> {
         if reset {
             self.set_zero();
         }
         if bs.is_empty() {
-            return Err(Error::ConversionSyntax)
+            return Err(Error::ConversionSyntax);
         }
         let mut exp = 0; // exponent
         let mut d = 0; // total digits of input
@@ -30,7 +30,8 @@ impl FixedDecimal {
         let mut i: isize = -1;
         for c in bs.iter() {
             i += 1;
-            if *c >= b'0' && *c <= b'9' { // test for digit char
+            if *c >= b'0' && *c <= b'9' {
+                // test for digit char
                 last = i as isize;
                 d += 1;
                 continue;
@@ -42,22 +43,26 @@ impl FixedDecimal {
                 }
                 continue;
             }
-            if i == 0 { // first in string
-                if *c == b'-' { // valid - sign
+            if i == 0 {
+                // first in string
+                if *c == b'-' {
+                    // valid - sign
                     cfirst += 1;
                     neg = true;
-                    continue
+                    continue;
                 }
-                if *c == b'+' { // valid + sign
+                if *c == b'+' {
+                    // valid + sign
                     cfirst += 1;
-                    continue
+                    continue;
                 }
             }
             // c is not a digit, or a valid '+', '-' or '.'
             more_to_proc = true; // indicate more data to process
-            break
+            break;
         }
-        if last == -1 { // no digits yet
+        if last == -1 {
+            // no digits yet
             // decided not to support Infinities and NaNs now
             return Err(Error::ConversionSyntax);
         }
@@ -71,7 +76,8 @@ impl FixedDecimal {
             // found 'e' or 'E'
             // sign no longer required
             i += 1;
-            if i as usize == bs.len() { // to (possible) sign
+            if i as usize == bs.len() {
+                // to (possible) sign
                 return Err(Error::ConversionSyntax);
             }
             c = bs[i as usize];
@@ -79,17 +85,18 @@ impl FixedDecimal {
                 nege = true;
                 i += 1;
                 if i as usize == bs.len() {
-                    return Err(Error::ConversionSyntax)
+                    return Err(Error::ConversionSyntax);
                 }
             } else if c == b'+' {
                 i += 1;
                 if i as usize == bs.len() {
-                    return Err(Error::ConversionSyntax)
+                    return Err(Error::ConversionSyntax);
                 }
             }
             loop {
                 c = bs[i as usize];
-                if c == b'0' && i as usize != bs.len()-1 { // strip insignificant zeroes
+                if c == b'0' && i as usize != bs.len() - 1 {
+                    // strip insignificant zeroes
                     i += 1;
                 } else {
                     break;
@@ -97,10 +104,11 @@ impl FixedDecimal {
             }
             let firstexp = i; // save exponent digit place
             for c in bs[i as usize..].iter() {
-                if *c < b'0' || *c > b'9' { // not a digit
+                if *c < b'0' || *c > b'9' {
+                    // not a digit
                     return Err(Error::ConversionSyntax);
                 }
-                exp = exp*10 + *c as i32 - '0' as i32;
+                exp = exp * 10 + *c as i32 - '0' as i32;
                 i += 1
             }
             // maximum exponent is 65, with sign at most 4 chars
@@ -116,7 +124,8 @@ impl FixedDecimal {
         }
         // Here when whole string has been inspected; syntax is good
         // cfirst->first digit(never dot), last->last digit(ditto)
-        let frac_digits = if dotchar == -1 || last < dotchar { // no dot found or dot is last char
+        let frac_digits = if dotchar == -1 || last < dotchar {
+            // no dot found or dot is last char
             0
         } else {
             last - dotchar
@@ -129,9 +138,11 @@ impl FixedDecimal {
             match frac.cmp(&0) {
                 Ordering::Equal => digits = d,
                 Ordering::Greater => {
-                    if d > frac { // have both integral and fractional part
+                    if d > frac {
+                        // have both integral and fractional part
                         digits = d;
-                    } else { // only fractional part
+                    } else {
+                        // only fractional part
                         digits = frac;
                         heading_zeroes = frac - d;
                     }
@@ -151,26 +162,28 @@ impl FixedDecimal {
         // units of integral part and fractional part
         let intg_units = get_units(digits - frac);
         let frac_units = get_units(frac);
-        let mut up = (intg_units + frac_units -1) as isize; // lsu unit index, from highest to lowest
-        // reset i as parse index
+        let mut up = (intg_units + frac_units - 1) as isize; // lsu unit index, from highest to lowest
+                                                             // reset i as parse index
         i = cfirst;
         if intg_units > 0 {
             let mut out = 0;
-            let mut cut = digits -frac;
+            let mut cut = digits - frac;
             let mut c;
             loop {
                 c = bs[i as usize];
-                if c == b'.' { // ignore '.', this may be caused by exponent normalization
+                if c == b'.' {
+                    // ignore '.', this may be caused by exponent normalization
                     i += 1;
                     continue;
                 }
-                out = out*10 + c as i32 - b'0' as i32;
+                out = out * 10 + c as i32 - b'0' as i32;
                 cut -= 1;
                 if cut == 0 {
-                    break // nothing for this unit
+                    break; // nothing for this unit
                 }
-                if i == last { // no more digits to read, adjust out if cut > 0
-                    break
+                if i == last {
+                    // no more digits to read, adjust out if cut > 0
+                    break;
                 }
                 if mod9(cut) > 0 {
                     i += 1;
@@ -198,7 +211,8 @@ impl FixedDecimal {
         if frac_units > 0 {
             let mut out = 0; // accumulator in unit
             let mut cut = DIGITS_PER_UNIT as i8;
-            while heading_zeroes >= DIGITS_PER_UNIT as i8 { // current unit filled all zeroes
+            while heading_zeroes >= DIGITS_PER_UNIT as i8 {
+                // current unit filled all zeroes
                 self.lsu[up as usize] = 0;
                 up -= 1;
                 heading_zeroes -= DIGITS_PER_UNIT as i8;
@@ -208,13 +222,15 @@ impl FixedDecimal {
             let mut c;
             loop {
                 c = bs[i as usize];
-                if c == b'.' { // ignore '.', this may be caused by exponent normalization
-                    i += 1;    
+                if c == b'.' {
+                    // ignore '.', this may be caused by exponent normalization
+                    i += 1;
                     continue;
                 }
                 cut -= 1;
                 out += (c as i32 - '0' as i32) * POW10[cut as usize];
-                if i == last { // done
+                if i == last {
+                    // done
                     break;
                 }
                 if cut > 0 {
@@ -241,6 +257,7 @@ impl FixedDecimal {
     /// frac specifies the fractional precision of the output string.
     /// if frac < 0, will output all fractional digits.
     /// if frac >= 0, will truncate to given digits.
+    #[inline]
     pub fn to_string(&self, frac: isize) -> String {
         let mut bs = Vec::new();
         self.append_str_buf(&mut bs, frac);
@@ -250,6 +267,7 @@ impl FixedDecimal {
     /// appends formatted string to given buffer.
     /// if frac < 0, will output all fractional digits.
     /// if frac >= 0, will truncate to given digits.
+    #[inline]
     pub fn append_str_buf(&self, buf: &mut Vec<u8>, frac: isize) {
         if self.is_neg() {
             buf.push(b'-');
@@ -257,13 +275,15 @@ impl FixedDecimal {
         let intg_units = self.intg_units();
         let frac_units = self.frac_units();
         let mut up = (intg_units + frac_units) as isize - 1;
-        if intg_units > 0 { // intg part
+        if intg_units > 0 {
+            // intg part
             let mut elim_heading_zeroes = true;
             while up >= frac_units as isize {
                 // for each unit, we divide into 3 3-digit parts and print them each time
                 let mut u = self.lsu[up as usize];
                 up -= 1;
-                if elim_heading_zeroes && u == 0 { // rare case, integral part exists but zero
+                if elim_heading_zeroes && u == 0 {
+                    // rare case, integral part exists but zero
                     continue;
                 }
                 // XXX,xxx,xxx
@@ -285,17 +305,21 @@ impl FixedDecimal {
                 // xxx,xxx,XXX
                 elim_heading_zeroes = d3_to_str(u, buf, elim_heading_zeroes);
             }
-            if elim_heading_zeroes { // integral units are all zeroes
+            if elim_heading_zeroes {
+                // integral units are all zeroes
                 buf.push(b'0');
             }
         } else {
             buf.push(b'0'); // append 0 if no integral part
         }
-        if frac == 0 { // no fractional digits
+        if frac == 0 {
+            // no fractional digits
             return;
         }
-        if frac < 0 { // frac is not specified
-            if frac_units > 0 { // fractional part exists
+        if frac < 0 {
+            // frac is not specified
+            if frac_units > 0 {
+                // fractional part exists
                 buf.push(b'.');
                 let frac_digits = self.frac();
                 self.append_frac(buf, up as isize, frac_digits);
@@ -303,7 +327,8 @@ impl FixedDecimal {
             return;
         }
         // frac is specified
-        if frac_units == 0 { // no fractional part
+        if frac_units == 0 {
+            // no fractional part
             buf.push(b'.');
             for _ in 0..frac {
                 buf.push(b'0');
@@ -311,7 +336,8 @@ impl FixedDecimal {
             return;
         }
         let full_frac_digits = (frac_units * DIGITS_PER_UNIT) as isize;
-        if frac <= full_frac_digits { // this decimal supports specified frac
+        if frac <= full_frac_digits {
+            // this decimal supports specified frac
             buf.push(b'.');
             self.append_frac(buf, up, frac as i8);
             return;
@@ -320,7 +346,7 @@ impl FixedDecimal {
         buf.push(b'.');
         self.append_frac(buf, up, full_frac_digits as i8);
         // add extra zeroes
-        for _ in 0..frac-full_frac_digits {
+        for _ in 0..frac - full_frac_digits {
             buf.push(b'0');
         }
     }
@@ -329,22 +355,25 @@ impl FixedDecimal {
         while up >= 0 {
             // for each unit, divide into 3 3-digit parts and print.
             // need to check whether the digits exceeds fractional length.
-            if frac_digits == 0 { // already reached the fractional precision limit
-                return
+            if frac_digits == 0 {
+                // already reached the fractional precision limit
+                return;
             }
             let mut u = self.lsu[up as usize];
             up -= 1;
-            if u == 0 { // all zeros
-                if frac_digits > DIGITS_PER_UNIT as i8 { // digit number larger than 
+            if u == 0 {
+                // all zeros
+                if frac_digits > DIGITS_PER_UNIT as i8 {
+                    // digit number larger than
                     buf.extend_from_slice(b"000000000");
                     frac_digits -= DIGITS_PER_UNIT as i8;
-                    continue
+                    continue;
                 }
                 // append n zeroes and return
-                for _ in 0..frac_digits { 
+                for _ in 0..frac_digits {
                     buf.push(b'0');
                 }
-                return
+                return;
             }
             // non-zero
             // XXX,xxx,xxx
@@ -352,10 +381,10 @@ impl FixedDecimal {
                 let high = u / BIN_HIGH_UNIT;
                 let start_idx = high as usize * 4 + 1;
                 if frac_digits < 3 {
-                    buf.extend_from_slice(&BIN2CHAR[start_idx..start_idx+frac_digits as usize]);
+                    buf.extend_from_slice(&BIN2CHAR[start_idx..start_idx + frac_digits as usize]);
                     return;
                 }
-                buf.extend_from_slice(&BIN2CHAR[start_idx..start_idx+3]);
+                buf.extend_from_slice(&BIN2CHAR[start_idx..start_idx + 3]);
                 frac_digits -= 3;
                 if frac_digits == 0 {
                     return;
@@ -379,10 +408,10 @@ impl FixedDecimal {
                 let mid = u / BIN_MID_UNIT;
                 let start_idx = mid as usize * 4 + 1;
                 if frac_digits < 3 {
-                    buf.extend_from_slice(&BIN2CHAR[start_idx..start_idx+frac_digits as usize]);
+                    buf.extend_from_slice(&BIN2CHAR[start_idx..start_idx + frac_digits as usize]);
                     return;
                 }
-                buf.extend_from_slice(&BIN2CHAR[start_idx..start_idx+3]);
+                buf.extend_from_slice(&BIN2CHAR[start_idx..start_idx + 3]);
                 frac_digits -= 3;
                 if frac_digits == 0 {
                     return;
@@ -404,10 +433,10 @@ impl FixedDecimal {
             // xxx,xxx,XXX
             let start_idx = u as usize * 4 + 1;
             if frac_digits < 3 {
-                buf.extend_from_slice(&BIN2CHAR[start_idx..start_idx+frac_digits as usize]);
+                buf.extend_from_slice(&BIN2CHAR[start_idx..start_idx + frac_digits as usize]);
                 return;
             }
-            buf.extend_from_slice(&BIN2CHAR[start_idx..start_idx+3]);
+            buf.extend_from_slice(&BIN2CHAR[start_idx..start_idx + 3]);
             frac_digits -= 3;
             if frac_digits == 0 {
                 return;
@@ -416,9 +445,19 @@ impl FixedDecimal {
     }
 }
 
+impl FromStr for FixedDecimal {
+    type Err = Error;
+    #[inline]
+    fn from_str(src: &str) -> Result<Self> {
+        let mut fd = FixedDecimal::zero();
+        fd.from_ascii_str(src, false)?;
+        Ok(fd)
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    
+
     use super::*;
 
     #[test]
@@ -476,58 +515,58 @@ mod tests {
     fn test_to_string() {
         let mut fd = FixedDecimal::zero();
         for (input, frac, expected) in vec![
-                ("0", -1, "0"),
-                ("1", -1, "1"),
-                ("-1", -1, "-1"),
-                ("+1", -1, "1"),
-                ("123", -1, "123"),
-                ("123456789012345", -1, "123456789012345"),
-                ("0.0", -1, "0.0"),
-                ("0.100", -1, "0.100"),
-                ("0.1", -1, "0.1"),
-                ("0.12345678901234567890", -1, "0.12345678901234567890"),
-                ("0.123", -1, "0.123"),
-                ("1.0", -1, "1.0"),
-                ("-1.0", -1, "-1.0"),
-                ("1e0", -1, "1"),
-                ("1E1", -1, "10"),
-                ("1E+2", -1, "100"),
-                ("1.0E-2", -1, "0.010"),
-                ("1.0e10", -1, "10000000000"),
-                ("1.2345e20", -1, "123450000000000000000"),
-                ("5.4433e4", -1, "54433"),
-                ("5.4433e3", -1, "5443.3"),
-                ("5.4433e2", -1, "544.33"),
-                ("5.4433e1", -1, "54.433"),
-                ("5.4433e0", -1, "5.4433"),
-                ("5.4433e-1", -1, "0.54433"),
-                ("5.4433e-2", -1, "0.054433"),
-                ("5.4433e-3", -1, "0.0054433"),
-                ("5.4433e-5", -1, "0.000054433"),
-                ("5.4433e-6", -1, "0.0000054433"),
-                ("5.4433e-7", -1, "0.00000054433"),
-                ("5.4433e-8", -1, "0.000000054433"),
-                ("5.4433e-9", -1, "0.0000000054433"),
-                ("5.4433e-10", -1, "0.00000000054433"),
-                ("5.4433e-11", -1, "0.000000000054433"),
-                ("5.4433e-20", -1, "0.000000000000000000054433"),
-                ("123456789.123456789", 0, "123456789"),
-                ("123456789.123456789", 1, "123456789.1"),
-                ("123456789.123456789", 2, "123456789.12"),
-                ("123456789.123456789", 3, "123456789.123"),
-                ("123456789.123456789", 4, "123456789.1234"),
-                ("123456789.123456789", 5, "123456789.12345"),
-                ("123456789.123456789", 6, "123456789.123456"),
-                ("123456789.123456789", 7, "123456789.1234567"),
-                ("123456789.123456789", 8, "123456789.12345678"),
-                ("123456789.123456789", 9, "123456789.123456789"),
-                ("123456789.123456789", 10, "123456789.1234567890"),
-                ("1.234000567", 4, "1.2340"),
-                ("1.234000567", 5, "1.23400"),
-                ("1.234000567", 6, "1.234000"),
-                ("1.021", 2, "1.02"),
-                ("1.00021", 2, "1.00"),
-                ("123", 2, "123.00"),
+            ("0", -1, "0"),
+            ("1", -1, "1"),
+            ("-1", -1, "-1"),
+            ("+1", -1, "1"),
+            ("123", -1, "123"),
+            ("123456789012345", -1, "123456789012345"),
+            ("0.0", -1, "0.0"),
+            ("0.100", -1, "0.100"),
+            ("0.1", -1, "0.1"),
+            ("0.12345678901234567890", -1, "0.12345678901234567890"),
+            ("0.123", -1, "0.123"),
+            ("1.0", -1, "1.0"),
+            ("-1.0", -1, "-1.0"),
+            ("1e0", -1, "1"),
+            ("1E1", -1, "10"),
+            ("1E+2", -1, "100"),
+            ("1.0E-2", -1, "0.010"),
+            ("1.0e10", -1, "10000000000"),
+            ("1.2345e20", -1, "123450000000000000000"),
+            ("5.4433e4", -1, "54433"),
+            ("5.4433e3", -1, "5443.3"),
+            ("5.4433e2", -1, "544.33"),
+            ("5.4433e1", -1, "54.433"),
+            ("5.4433e0", -1, "5.4433"),
+            ("5.4433e-1", -1, "0.54433"),
+            ("5.4433e-2", -1, "0.054433"),
+            ("5.4433e-3", -1, "0.0054433"),
+            ("5.4433e-5", -1, "0.000054433"),
+            ("5.4433e-6", -1, "0.0000054433"),
+            ("5.4433e-7", -1, "0.00000054433"),
+            ("5.4433e-8", -1, "0.000000054433"),
+            ("5.4433e-9", -1, "0.0000000054433"),
+            ("5.4433e-10", -1, "0.00000000054433"),
+            ("5.4433e-11", -1, "0.000000000054433"),
+            ("5.4433e-20", -1, "0.000000000000000000054433"),
+            ("123456789.123456789", 0, "123456789"),
+            ("123456789.123456789", 1, "123456789.1"),
+            ("123456789.123456789", 2, "123456789.12"),
+            ("123456789.123456789", 3, "123456789.123"),
+            ("123456789.123456789", 4, "123456789.1234"),
+            ("123456789.123456789", 5, "123456789.12345"),
+            ("123456789.123456789", 6, "123456789.123456"),
+            ("123456789.123456789", 7, "123456789.1234567"),
+            ("123456789.123456789", 8, "123456789.12345678"),
+            ("123456789.123456789", 9, "123456789.123456789"),
+            ("123456789.123456789", 10, "123456789.1234567890"),
+            ("1.234000567", 4, "1.2340"),
+            ("1.234000567", 5, "1.23400"),
+            ("1.234000567", 6, "1.234000"),
+            ("1.021", 2, "1.02"),
+            ("1.00021", 2, "1.00"),
+            ("123", 2, "123.00"),
         ] {
             assert!(fd.from_ascii_str(&input, true).is_ok());
             println!("fd={:?}", fd);
@@ -535,5 +574,4 @@ mod tests {
             assert_eq!(expected, &actual[..]);
         }
     }
-
 }
