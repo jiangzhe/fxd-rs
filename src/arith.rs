@@ -1,15 +1,15 @@
-use std::ops::{Add, Sub, Mul, Div, Rem};
 use std::cmp::Ordering;
+use std::ops::{Add, Div, Mul, Rem, Sub};
 
-use crate::decimal::{DIGITS_PER_UNIT, FixedDecimal, MAX_FRAC_UNITS, MAX_UNITS, UNIT};
-use crate::utils::{get_units, unit_leading_zeroes, units_greater_equal};
 use crate::cmp::cmp_abs_lsu;
-use crate::error::{Result, Error};
+use crate::decimal::{FixedDecimal, DIGITS_PER_UNIT, MAX_FRAC_UNITS, MAX_UNITS, UNIT};
+use crate::error::{Error, Result};
+use crate::utils::{get_units, unit_leading_zeroes, units_greater_equal};
 
 const DIV_INCR_FRAC: usize = 4;
 
 impl FixedDecimal {
-
+    #[inline]
     pub fn add_to(lhs: &Self, rhs: &Self, res: &mut Self) -> Result<()> {
         if lhs.is_zero() {
             *res = rhs.clone();
@@ -35,6 +35,7 @@ impl FixedDecimal {
         Ok(())
     }
 
+    #[inline]
     pub fn sub_to(lhs: &Self, rhs: &Self, res: &mut Self) -> Result<()> {
         if lhs.is_zero() {
             *res = rhs.clone();
@@ -65,6 +66,7 @@ impl FixedDecimal {
         Ok(())
     }
 
+    #[inline]
     pub fn mul_to(lhs: &Self, rhs: &Self, res: &mut Self) -> Result<()> {
         if lhs.is_zero() || rhs.is_zero() {
             res.set_zero();
@@ -78,6 +80,7 @@ impl FixedDecimal {
         Ok(())
     }
 
+    #[inline]
     pub fn div_to(lhs: &Self, rhs: &Self, res: &mut Self, incr_frac: usize) -> Result<()> {
         let res_neg = lhs.is_neg() != rhs.is_neg();
         div_abs(lhs, rhs, res, incr_frac as isize)?;
@@ -87,6 +90,7 @@ impl FixedDecimal {
         Ok(())
     }
 
+    #[inline]
     pub fn rem_to(lhs: &Self, rhs: &Self, res: &mut Self) -> Result<()> {
         let res_neg = lhs.is_neg();
         rem_abs(lhs, rhs, res)?;
@@ -100,8 +104,13 @@ impl FixedDecimal {
 impl Add for FixedDecimal {
     type Output = FixedDecimal;
 
+    #[inline]
     fn add(self, rhs: Self) -> Self::Output {
-        let mut res = FixedDecimal{intg: 0, frac: 0, lsu: [0; MAX_UNITS]};
+        let mut res = FixedDecimal {
+            intg: 0,
+            frac: 0,
+            lsu: [0; MAX_UNITS],
+        };
         if let Err(e) = Self::add_to(&self, &rhs, &mut res) {
             panic!("addition failed: {}", e);
         }
@@ -112,8 +121,13 @@ impl Add for FixedDecimal {
 impl Sub for FixedDecimal {
     type Output = FixedDecimal;
 
+    #[inline]
     fn sub(self, rhs: Self) -> Self::Output {
-        let mut res = FixedDecimal{intg: 0, frac: 0, lsu: [0; MAX_UNITS]};
+        let mut res = FixedDecimal {
+            intg: 0,
+            frac: 0,
+            lsu: [0; MAX_UNITS],
+        };
         if let Err(e) = Self::sub_to(&self, &rhs, &mut res) {
             panic!("subtraction failed: {}", e);
         }
@@ -124,8 +138,13 @@ impl Sub for FixedDecimal {
 impl Mul for FixedDecimal {
     type Output = FixedDecimal;
 
+    #[inline]
     fn mul(self, rhs: Self) -> Self::Output {
-        let mut res = FixedDecimal{intg: 0, frac: 0, lsu: [0; MAX_UNITS]};
+        let mut res = FixedDecimal {
+            intg: 0,
+            frac: 0,
+            lsu: [0; MAX_UNITS],
+        };
         if let Err(e) = Self::mul_to(&self, &rhs, &mut res) {
             panic!("multiplication failed: {}", e);
         }
@@ -136,8 +155,13 @@ impl Mul for FixedDecimal {
 impl Div for FixedDecimal {
     type Output = FixedDecimal;
 
+    #[inline]
     fn div(self, rhs: Self) -> Self::Output {
-        let mut res = FixedDecimal{intg: 0, frac: 0, lsu: [0; MAX_UNITS]};
+        let mut res = FixedDecimal {
+            intg: 0,
+            frac: 0,
+            lsu: [0; MAX_UNITS],
+        };
         if let Err(e) = Self::div_to(&self, &rhs, &mut res, DIV_INCR_FRAC) {
             panic!("division failed: {}", e);
         }
@@ -148,8 +172,13 @@ impl Div for FixedDecimal {
 impl Rem for FixedDecimal {
     type Output = FixedDecimal;
 
+    #[inline]
     fn rem(self, rhs: Self) -> Self::Output {
-        let mut res = FixedDecimal{intg: 0, frac: 0, lsu: [0; MAX_UNITS]};
+        let mut res = FixedDecimal {
+            intg: 0,
+            frac: 0,
+            lsu: [0; MAX_UNITS],
+        };
         if let Err(e) = Self::rem_to(&self, &rhs, &mut res) {
             panic!("modulo failed: {}", e);
         }
@@ -202,7 +231,8 @@ fn add_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Re
         res_idx += 1;
     }
     let intg_unit_diff = liu as isize - riu as isize;
-    if intg_unit_diff > 0 { // lhs has more intg
+    if intg_unit_diff > 0 {
+        // lhs has more intg
         stop = lhs_idx + intg_unit_diff;
         while lhs_idx < stop {
             let (r0, c0) = add_with_carry(lhs.lsu[lhs_idx as usize], 0, carry);
@@ -214,7 +244,8 @@ fn add_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Re
         if carry > 0 {
             res.lsu[res_idx as usize] = carry;
         }
-    } else if intg_unit_diff < 0 { // rhs has more intg
+    } else if intg_unit_diff < 0 {
+        // rhs has more intg
         stop = rhs_idx - intg_unit_diff;
         while rhs_idx < stop {
             let (r0, c0) = add_with_carry(rhs.lsu[rhs_idx as usize], 0, carry);
@@ -226,7 +257,8 @@ fn add_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Re
         if carry > 0 {
             res.lsu[res_idx as usize] = carry;
         }
-    } else if carry != 0 { // no more intg but carry is non-zero
+    } else if carry != 0 {
+        // no more intg but carry is non-zero
         res.lsu[res_idx as usize] = carry;
     }
 
@@ -234,7 +266,7 @@ fn add_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Re
     res.frac = lhs.frac.max(rhs.frac);
     let res_frac_units = res.frac_units() as isize;
     while res_intg_non_zero >= 0 {
-        if res.lsu[(res_intg_non_zero+res_frac_units) as usize] > 0 {
+        if res.lsu[(res_intg_non_zero + res_frac_units) as usize] > 0 {
             break;
         }
         res_intg_non_zero -= 1;
@@ -268,7 +300,8 @@ fn sub_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Re
     let mut rhs_idx: isize = 0;
     let mut res_idx: isize = 0;
     let mut borrow: i32 = 0;
-    match frac_unit_diff.cmp(&0) { // lhs has more frac
+    match frac_unit_diff.cmp(&0) {
+        // lhs has more frac
         Ordering::Greater => {
             res.lsu[..frac_unit_diff as usize].copy_from_slice(&lhs.lsu[..frac_unit_diff as usize]);
             lhs_idx = frac_unit_diff;
@@ -276,7 +309,12 @@ fn sub_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Re
         }
         Ordering::Less => {
             frac_unit_diff = -frac_unit_diff;
-            for (rst, rv) in res.lsu.iter_mut().zip(rhs.lsu.iter()).take(frac_unit_diff as usize) {
+            for (rst, rv) in res
+                .lsu
+                .iter_mut()
+                .zip(rhs.lsu.iter())
+                .take(frac_unit_diff as usize)
+            {
                 let (r0, b0) = sub_with_borrow(0, *rv, borrow);
                 *rst = r0;
                 borrow = b0;
@@ -288,7 +326,8 @@ fn sub_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Re
     }
     let mut stop = res_idx + liu.min(riu) as isize + lfu.min(rfu) as isize;
     while res_idx < stop {
-        let (r0, b0) = sub_with_borrow(lhs.lsu[lhs_idx as usize], rhs.lsu[rhs_idx as usize], borrow);
+        let (r0, b0) =
+            sub_with_borrow(lhs.lsu[lhs_idx as usize], rhs.lsu[rhs_idx as usize], borrow);
         res.lsu[res_idx as usize] = r0;
         borrow = b0;
         res_idx += 1;
@@ -332,7 +371,7 @@ fn sub_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Re
     res.frac = lhs.frac.max(rhs.frac);
     let result_frac_units = res.frac_units();
     while res_intg_non_zero >= 0 {
-        if res.lsu[(res_intg_non_zero+result_frac_units as isize) as usize] > 0 {
+        if res.lsu[(res_intg_non_zero + result_frac_units as isize) as usize] > 0 {
             break;
         }
         res_intg_non_zero -= 1;
@@ -354,13 +393,16 @@ fn mul_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Re
     let res_intg_units = get_units(res_intg_digits);
     let res_frac_digits = lhs.frac() + rhs.frac();
     let mut res_frac_units = get_units(res_frac_digits);
-    if res_intg_units > MAX_UNITS { // integral overflow
+    if res_intg_units > MAX_UNITS {
+        // integral overflow
         return Err(Error::Overflow);
     }
-    if res_intg_units + res_frac_units > MAX_UNITS { // integral+fractional overflow
+    if res_intg_units + res_frac_units > MAX_UNITS {
+        // integral+fractional overflow
         res_frac_units = MAX_UNITS - res_intg_units; // fractional truncation required
     }
-    if res_frac_units > MAX_FRAC_UNITS { // exceeds maximum fractional units
+    if res_frac_units > MAX_FRAC_UNITS {
+        // exceeds maximum fractional units
         res_frac_units = MAX_FRAC_UNITS;
     }
     let liu = lhs.intg_units();
@@ -371,15 +413,15 @@ fn mul_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Re
     // how many units has to be shifted and can be ignored in calculation.
     // 1. If lhsIdx + rhsIdx - shiftUnits < -1, we can ignore the result
     //    of left.lsu[lhsIdx]*right.lsu[rhsIdx].
-    // 2. If lhsIdx + rhsIdx - shiftUnits = -1, we need to take care of the 
+    // 2. If lhsIdx + rhsIdx - shiftUnits = -1, we need to take care of the
     //    carry and add to result.lsu[0].
     // 3. If lhsIdx + rhsIdx - shiftUnits >= 0, follow normal calcuation.
     let shift_units = (lfu + rfu - res_frac_units) as isize;
     let mut carry: i64 = 0;
     // let mut res_idx: isize = 0;
-    for (rhs_idx, rv) in rhs.lsu[..(riu+rfu) as usize].iter().enumerate() {
+    for (rhs_idx, rv) in rhs.lsu[..(riu + rfu) as usize].iter().enumerate() {
         let mut res_idx = -1;
-        for (lhs_idx, lv) in lhs.lsu[..(liu+lfu) as usize].iter().enumerate() {
+        for (lhs_idx, lv) in lhs.lsu[..(liu + lfu) as usize].iter().enumerate() {
             res_idx = (lhs_idx + rhs_idx) as isize - shift_units;
             if res_idx < -1 {
                 continue;
@@ -399,7 +441,7 @@ fn mul_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Re
         }
         debug_assert!(res_idx >= 0);
         if res_idx + 1 < MAX_UNITS as isize {
-            res.lsu[(res_idx+1) as usize] = carry as i32;
+            res.lsu[(res_idx + 1) as usize] = carry as i32;
         } else if carry > 0 {
             return Err(Error::Overflow);
         }
@@ -413,7 +455,12 @@ fn mul_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Re
 /// Divides two decimals' absolute values.
 /// It's implementation of Knuth's Algorithm 4.3.1 D, with support on fractional numbers.
 #[allow(clippy::many_single_char_names)]
-fn div_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal, mut incr_frac: isize) -> Result<()> {
+fn div_abs(
+    lhs: &FixedDecimal,
+    rhs: &FixedDecimal,
+    res: &mut FixedDecimal,
+    mut incr_frac: isize,
+) -> Result<()> {
     res.set_zero(); // always clear result first
     let lhs_intg = lhs.intg();
     let liu = get_units(lhs_intg);
@@ -425,15 +472,16 @@ fn div_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal, mut i
     let rhs_frac = rhs.frac();
     let rfu = get_units(rhs_frac);
     let rhs_ext_frac = (rfu * DIGITS_PER_UNIT) as isize; // extended frac with unit size
-    // leading non-zero unit of lhs and rhs
+                                                         // leading non-zero unit of lhs and rhs
     let mut rhs_non_zero = (riu + rfu) as isize - 1;
     while rhs_non_zero >= 0 {
         if rhs.lsu[rhs_non_zero as usize] > 0 {
-            break
+            break;
         }
         rhs_non_zero -= 1;
     }
-    if rhs_non_zero < 0 { // divider is zero
+    if rhs_non_zero < 0 {
+        // divider is zero
         return Err(Error::DivisionByZero);
     }
 
@@ -441,17 +489,20 @@ fn div_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal, mut i
     let mut lhs_non_zero = (liu + lfu) as isize - 1;
     while lhs_non_zero >= 0 {
         if lhs.lsu[lhs_non_zero as usize] > 0 {
-            break
+            break;
         }
         lhs_non_zero -= 1;
     }
-    if lhs_non_zero < 0 { // dividend is zero
+    if lhs_non_zero < 0 {
+        // dividend is zero
         return Ok(());
     }
     // digits of rhs from leading non-zero position
-    let rhs_prec = (rhs_non_zero+1) * DIGITS_PER_UNIT as isize - unit_leading_zeroes(rhs.lsu[rhs_non_zero as usize]) as isize;
+    let rhs_prec = (rhs_non_zero + 1) * DIGITS_PER_UNIT as isize
+        - unit_leading_zeroes(rhs.lsu[rhs_non_zero as usize]) as isize;
     // digits of lhs from leading non-zero position
-    let lhs_prec = (lhs_non_zero+1) * DIGITS_PER_UNIT as isize - unit_leading_zeroes(lhs.lsu[lhs_non_zero as usize]) as isize;
+    let lhs_prec = (lhs_non_zero + 1) * DIGITS_PER_UNIT as isize
+        - unit_leading_zeroes(lhs.lsu[lhs_non_zero as usize]) as isize;
     // because we store fractional part in units, we always extend frac precision
     // to multiple of 9. Here check if incrPrec is already covered by the auto-extension.
     // if so, reset incrPrec to 0.
@@ -461,13 +512,17 @@ fn div_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal, mut i
     }
     // calculate result frac units
     let mut res_frac_units = get_units((lhs_ext_frac + rhs_ext_frac + incr_frac) as i8);
-    if res_frac_units > MAX_FRAC_UNITS { // exceeds maximum fractional digits
+    if res_frac_units > MAX_FRAC_UNITS {
+        // exceeds maximum fractional digits
         res_frac_units = MAX_FRAC_UNITS;
     }
     // calculate result intg units
     let mut res_intg = (lhs_prec - lhs_ext_frac) - (rhs_prec - rhs_ext_frac);
     let mut dividend_shift: isize = 0;
-    if units_greater_equal(&lhs.lsu[..(lhs_non_zero + 1) as usize], &rhs.lsu[..(rhs_non_zero+1) as usize]) {
+    if units_greater_equal(
+        &lhs.lsu[..(lhs_non_zero + 1) as usize],
+        &rhs.lsu[..(rhs_non_zero + 1) as usize],
+    ) {
         res_intg += 1;
     } else {
         dividend_shift = -1;
@@ -495,7 +550,8 @@ fn div_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal, mut i
 
     // here we identify short/long division
     // short division means the divider only has single unit.
-    if rhs_non_zero == 0 { // short division
+    if rhs_non_zero == 0 {
+        // short division
         let d = rhs.lsu[0] as i64;
         let mut rem: i64 = 0;
         if dividend_shift < 0 {
@@ -524,16 +580,20 @@ fn div_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal, mut i
     // D1. normalization
     let norm_factor = UNIT as i64 / (rhs.lsu[rhs_non_zero as usize] as i64 + 1);
     // normalize buf1 and buf2
-    let mut buf1 = [0i32; MAX_UNITS*2]; // store normalized lhs
+    let mut buf1 = [0i32; MAX_UNITS * 2]; // store normalized lhs
     let mut buf2 = [0i32; MAX_UNITS]; // store normalized rhs
     if norm_factor == 1 {
-        buf1[res_units..res_units+lhs_non_zero as usize+1].copy_from_slice(&lhs.lsu[..lhs_non_zero as usize+1]);
-        buf2[..rhs_non_zero as usize + 1].copy_from_slice(&rhs.lsu[..rhs_non_zero as usize+1]);
+        buf1[res_units..res_units + lhs_non_zero as usize + 1]
+            .copy_from_slice(&lhs.lsu[..lhs_non_zero as usize + 1]);
+        buf2[..rhs_non_zero as usize + 1].copy_from_slice(&rhs.lsu[..rhs_non_zero as usize + 1]);
     } else {
         let mut carry: i64 = 0;
         // normalize lhs into buf1
-        let buf1_end = res_units+lhs_non_zero as usize+1;
-        for (b1, lv) in buf1[res_units..buf1_end].iter_mut().zip(lhs.lsu[..lhs_non_zero as usize+1].iter()) {
+        let buf1_end = res_units + lhs_non_zero as usize + 1;
+        for (b1, lv) in buf1[res_units..buf1_end]
+            .iter_mut()
+            .zip(lhs.lsu[..lhs_non_zero as usize + 1].iter())
+        {
             let u = *lv as i64 * norm_factor + carry;
             carry = u / UNIT as i64;
             *b1 = (u - carry * UNIT as i64) as i32;
@@ -543,7 +603,10 @@ fn div_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal, mut i
             carry = 0;
         }
         // normalize rhs into buf2
-        for (b2, rv) in buf2[..rhs_non_zero as usize + 1].iter_mut().zip(rhs.lsu[..rhs_non_zero as usize+1].iter()) {
+        for (b2, rv) in buf2[..rhs_non_zero as usize + 1]
+            .iter_mut()
+            .zip(rhs.lsu[..rhs_non_zero as usize + 1].iter())
+        {
             let u = *rv as i64 * norm_factor + carry;
             carry = u / UNIT as i64;
             *b2 = (u - carry * UNIT as i64) as i32;
@@ -569,9 +632,10 @@ fn div_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal, mut i
         debug_assert!(qhat < UNIT as i64, "qhat must be less than UNIT");
         let mut u2: i64 = 0;
         if i > 0 {
-            u2 = buf1[i as usize -1] as i64;
+            u2 = buf1[i as usize - 1] as i64;
         }
-        while qhat * d1 > rhat*UNIT as i64 + u2 { // check if qhat can satisfy next unit
+        while qhat * d1 > rhat * UNIT as i64 + u2 {
+            // check if qhat can satisfy next unit
             qhat -= 1; // decrease qhat
             rhat += d0; // increase rhat
         }
@@ -596,13 +660,15 @@ fn div_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal, mut i
             ms_idx += 1;
         }
         borrow += buf1[ms_idx as usize] - carry as i32;
-        if borrow == -1 { // qhat is larger, cannot satisfy the whole decimal
+        if borrow == -1 {
+            // qhat is larger, cannot satisfy the whole decimal
             // D6. add back (reverse subtract)
             qhat -= 1; // decrease qhat
             borrow = 0;
-            for i in 0..rhs_non_zero { // reverse subtract
-                let (r0, b0) = sub_with_borrow(0, buf1[(i+j) as usize], borrow);
-                buf1[(i+j) as usize] = r0;
+            for i in 0..rhs_non_zero {
+                // reverse subtract
+                let (r0, b0) = sub_with_borrow(0, buf1[(i + j) as usize], borrow);
+                buf1[(i + j) as usize] = r0;
                 borrow = b0;
             }
         } else {
@@ -618,7 +684,7 @@ fn div_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal, mut i
 }
 
 /// Modulos two decimals' absolute values.
-fn rem_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Result<()> { 
+fn rem_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Result<()> {
     res.set_zero(); // always clear result first
     let lhs_intg = lhs.intg();
     let liu = get_units(lhs_intg);
@@ -632,35 +698,45 @@ fn rem_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Re
     let mut rhs_non_zero = (riu + rfu) as isize - 1;
     while rhs_non_zero >= 0 {
         if rhs.lsu[rhs_non_zero as usize] > 0 {
-            break
+            break;
         }
         rhs_non_zero -= 1;
     }
-    if rhs_non_zero < 0 { // divider is zero
+    if rhs_non_zero < 0 {
+        // divider is zero
         return Err(Error::DivisionByZero);
     }
     // check and remove leading zeroes in lhs
     let mut lhs_non_zero = (liu + lfu) as isize - 1;
     while lhs_non_zero >= 0 {
         if lhs.lsu[lhs_non_zero as usize] > 0 {
-            break
+            break;
         }
         lhs_non_zero -= 1;
     }
-    if lhs_non_zero < 0 { // dividend is zero
+    if lhs_non_zero < 0 {
+        // dividend is zero
         return Ok(());
     }
 
-    match cmp_abs_lsu(liu as isize, lfu as isize, &lhs.lsu[..], riu as isize, rfu as isize, &rhs.lsu[..]) {
+    match cmp_abs_lsu(
+        liu as isize,
+        lfu as isize,
+        &lhs.lsu[..],
+        riu as isize,
+        rfu as isize,
+        &rhs.lsu[..],
+    ) {
         Ordering::Less => {
-            if rfu > lfu { // rhs has higher fractional precision
-                res.lsu[rfu-lfu..liu+rfu].copy_from_slice(&lhs.lsu[..lfu+liu]);
+            if rfu > lfu {
+                // rhs has higher fractional precision
+                res.lsu[rfu - lfu..liu + rfu].copy_from_slice(&lhs.lsu[..lfu + liu]);
                 res.frac = rhs_frac;
                 res.intg = lhs_intg;
                 return Ok(());
             }
             // lhs has higher or same fractional precision
-            res.lsu[..lfu+liu].copy_from_slice(&lhs.lsu[..lfu+liu]);
+            res.lsu[..lfu + liu].copy_from_slice(&lhs.lsu[..lfu + liu]);
             res.frac = lhs_frac.max(rhs_frac);
             res.intg = lhs_intg;
             return Ok(());
@@ -671,7 +747,10 @@ fn rem_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Re
     // calculate remainder frac units
     let rem_frac = lhs_frac.max(rhs_frac);
     let rem_frac_units = get_units(rem_frac);
-    let dividend_shift: isize = if units_greater_equal(&lhs.lsu[..(lhs_non_zero+1) as usize], &rhs.lsu[..(rhs_non_zero+1) as usize]) {
+    let dividend_shift: isize = if units_greater_equal(
+        &lhs.lsu[..(lhs_non_zero + 1) as usize],
+        &rhs.lsu[..(rhs_non_zero + 1) as usize],
+    ) {
         0
     } else {
         -1
@@ -684,11 +763,13 @@ fn rem_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Re
         (0, lfu as isize - rfu as isize)
     };
 
-    if rhs_non_zero == 0 { // short division
+    if rhs_non_zero == 0 {
+        // short division
         let d = rhs.lsu[0] as i64; // single divider
         let mut buf = [0i32; MAX_UNITS * 2];
         let buf_len = lhs_shift_units + lhs_non_zero + 1;
-        buf[lhs_shift_units as usize..buf_len as usize].copy_from_slice(&lhs.lsu[..(lhs_non_zero+1) as usize]);
+        buf[lhs_shift_units as usize..buf_len as usize]
+            .copy_from_slice(&lhs.lsu[..(lhs_non_zero + 1) as usize]);
         let mut rem = 0;
         if dividend_shift < 0 {
             rem = lhs.lsu[lhs_non_zero as usize] as i64;
@@ -703,10 +784,11 @@ fn rem_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Re
         }
         let mut res_non_zero = -1;
         if rem > 0 {
-            res.lsu[(i+1) as usize] = rem as i32;
+            res.lsu[(i + 1) as usize] = rem as i32;
             res_non_zero = i + 1;
         }
-        while i >= 0 { // copy rest of lhs into result
+        while i >= 0 {
+            // copy rest of lhs into result
             let v = buf[i as usize];
             res.lsu[i as usize] = v;
             if v > 0 && res_non_zero < 0 {
@@ -716,7 +798,9 @@ fn rem_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Re
         }
         if res_non_zero >= rem_frac_units as isize {
             let res_intg_units = (res_non_zero + 1 - rem_frac_units as isize) as i8;
-            res.intg = (res_intg_units * DIGITS_PER_UNIT as i8) - unit_leading_zeroes(res.lsu[(res_intg_units+rem_frac_units as i8-1) as usize]) as i8;
+            res.intg = (res_intg_units * DIGITS_PER_UNIT as i8)
+                - unit_leading_zeroes(res.lsu[(res_intg_units + rem_frac_units as i8 - 1) as usize])
+                    as i8;
         } else {
             res.intg = 0;
         }
@@ -731,16 +815,18 @@ fn rem_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Re
     let mut buf1 = [0i32; MAX_UNITS * 2];
     let mut buf2 = [0i32; MAX_UNITS * 2];
     if norm_factor == 1 {
-        buf1[lhs_shift_units as usize..buf1_len as usize].copy_from_slice(&lhs.lsu[..(lhs_non_zero+1) as usize]);
-        buf2[rhs_shift_units as usize..buf2_len as usize].copy_from_slice(&rhs.lsu[..(rhs_non_zero+1) as usize]);
+        buf1[lhs_shift_units as usize..buf1_len as usize]
+            .copy_from_slice(&lhs.lsu[..(lhs_non_zero + 1) as usize]);
+        buf2[rhs_shift_units as usize..buf2_len as usize]
+            .copy_from_slice(&rhs.lsu[..(rhs_non_zero + 1) as usize]);
     } else {
         let mut carry: i64 = 0;
         let mut i = 0;
         while i <= lhs_non_zero {
             let u = lhs.lsu[i as usize] as i64 * norm_factor + carry;
             carry = u / UNIT as i64; // update carry
-            buf1[(i+lhs_shift_units) as usize] = (u - carry * UNIT as i64) as i32;
-            i+=1;
+            buf1[(i + lhs_shift_units) as usize] = (u - carry * UNIT as i64) as i32;
+            i += 1;
         }
         if carry > 0 {
             buf1[buf1_len as usize] = carry as i32;
@@ -751,7 +837,7 @@ fn rem_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Re
         while i <= rhs_non_zero {
             let u = rhs.lsu[i as usize] as i64 * norm_factor + carry;
             carry = u / UNIT as i64;
-            buf2[(i+rhs_shift_units) as usize] = (u - carry * UNIT as i64) as i32;
+            buf2[(i + rhs_shift_units) as usize] = (u - carry * UNIT as i64) as i32;
             i += 1;
         }
         debug_assert!(carry == 0, "carry must be 0 in divider normalization");
@@ -762,7 +848,7 @@ fn rem_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Re
     let mut i = buf1_len + dividend_shift - 1;
     while i >= stop {
         // D3. make the guess on u1
-        let u0 = buf1[(i+1) as usize] as i64;
+        let u0 = buf1[(i + 1) as usize] as i64;
         let mut u1 = 0;
         if i >= 0 {
             u1 = buf1[i as usize] as i64;
@@ -773,16 +859,20 @@ fn rem_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Re
         debug_assert!(qhat < UNIT as i64, "qhat must be less than Unit");
         let mut u2 = 0;
         if i > 0 {
-            u2 = buf1[(i-1) as usize] as i64;
+            u2 = buf1[(i - 1) as usize] as i64;
         }
-        while qhat * d1 > rhat * UNIT as i64 + u2 { // check if qhat can satisfy next unit
+        while qhat * d1 > rhat * UNIT as i64 + u2 {
+            // check if qhat can satisfy next unit
             qhat -= 1;
             rhat += d0;
         }
         // D4. multiply and subtract
         let mut carry: i64 = 0;
         let mut borrow: i32 = 0;
-        for (b1, b2) in buf1[(i-buf2_len+1) as usize..(i+1) as usize].iter_mut().zip(buf2[..buf2_len as usize].iter()) {
+        for (b1, b2) in buf1[(i - buf2_len + 1) as usize..(i + 1) as usize]
+            .iter_mut()
+            .zip(buf2[..buf2_len as usize].iter())
+        {
             let mul_v = qhat * *b2 as i64 + carry; // mul
             carry = mul_v / UNIT as i64; // update carry
             let mul_v0 = mul_v - carry * UNIT as i64; // in current unit
@@ -791,18 +881,19 @@ fn rem_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Re
             *b1 = sub_v; // update buf1
         }
 
-        borrow += buf1[(i+1) as usize] - carry as i32;
-        if borrow == -1 { // qhat is larger, cannot satisfy the whole decimal
+        borrow += buf1[(i + 1) as usize] - carry as i32;
+        if borrow == -1 {
+            // qhat is larger, cannot satisfy the whole decimal
             // D6. add back (reverse subtract)
             // should decrease qhat, but not used in remainder
             borrow = 0; // reset borrow to zero
-            for b in &mut buf1[(i - buf2_len + 1) as usize..(i+1) as usize] {
+            for b in &mut buf1[(i - buf2_len + 1) as usize..(i + 1) as usize] {
                 let (r0, b0) = sub_with_borrow(0, *b, borrow);
                 borrow = b0;
                 *b = r0;
             }
         }
-        buf1[(i+1) as usize] = 0;
+        buf1[(i + 1) as usize] = 0;
         i -= 1;
     }
     // now we have remainder in buf1
@@ -832,7 +923,9 @@ fn rem_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Re
 
     if res_non_zero >= rem_frac_units as isize {
         let res_intg_units = (res_non_zero + 1 - rem_frac_units as isize) as i8;
-        res.intg = (res_intg_units * DIGITS_PER_UNIT as i8) - unit_leading_zeroes(res.lsu[(res_intg_units+rem_frac_units as i8-1) as usize]) as i8;
+        res.intg = (res_intg_units * DIGITS_PER_UNIT as i8)
+            - unit_leading_zeroes(res.lsu[(res_intg_units + rem_frac_units as i8 - 1) as usize])
+                as i8;
     } else {
         res.intg = 0;
     }
@@ -845,7 +938,7 @@ fn rem_abs(lhs: &FixedDecimal, rhs: &FixedDecimal, res: &mut FixedDecimal) -> Re
 pub(crate) fn add_with_carry(a: i32, b: i32, carry: i32) -> (i32, i32) {
     let r = a + b + carry;
     if r >= UNIT {
-        return (r - UNIT, 1)
+        return (r - UNIT, 1);
     }
     (r, 0)
 }
@@ -903,7 +996,14 @@ mod tests {
             assert!(FixedDecimal::add_to(&fd1, &fd2, &mut fd3).is_ok());
             let actual = fd3.to_string(-1);
             println!("fd3={:?}", fd3);
-            println!("{} + {} = {} , intg={}, frac={}", fd1.to_string(-1), fd2.to_string(-1), actual, fd3.intg(), fd3.frac());
+            println!(
+                "{} + {} = {} , intg={}, frac={}",
+                fd1.to_string(-1),
+                fd2.to_string(-1),
+                actual,
+                fd3.intg(),
+                fd3.frac()
+            );
             assert_eq!(&actual[..], expected);
             let actual = (fd1.clone() + fd2.clone()).to_string(-1);
             assert_eq!(&actual[..], expected);
@@ -950,7 +1050,14 @@ mod tests {
             assert!(FixedDecimal::sub_to(&fd1, &fd2, &mut fd3).is_ok());
             let actual = fd3.to_string(-1);
             println!("fd3={:?}", fd3);
-            println!("{} - {} = {} , intg={}, frac={}", fd1.to_string(-1), fd2.to_string(-1), actual, fd3.intg(), fd3.frac());
+            println!(
+                "{} - {} = {} , intg={}, frac={}",
+                fd1.to_string(-1),
+                fd2.to_string(-1),
+                actual,
+                fd3.intg(),
+                fd3.frac()
+            );
             assert_eq!(&actual[..], expected);
             let actual = (fd1.clone() - fd2.clone()).to_string(-1);
             assert_eq!(&actual[..], expected);
@@ -994,7 +1101,14 @@ mod tests {
             assert!(FixedDecimal::mul_to(&fd1, &fd2, &mut fd3).is_ok());
             let actual = fd3.to_string(-1);
             println!("fd3={:?}", fd3);
-            println!("{} * {} = {} , intg={}, frac={}", fd1.to_string(-1), fd2.to_string(-1), actual, fd3.intg(), fd3.frac());
+            println!(
+                "{} * {} = {} , intg={}, frac={}",
+                fd1.to_string(-1),
+                fd2.to_string(-1),
+                actual,
+                fd3.intg(),
+                fd3.frac()
+            );
             assert_eq!(&actual[..], expected);
             let actual = (fd1.clone() * fd2.clone()).to_string(-1);
             assert_eq!(&actual[..], expected);
@@ -1007,119 +1121,194 @@ mod tests {
         let mut fd2 = FixedDecimal::zero();
         let mut fd3 = FixedDecimal::zero();
         for (input1, input2, expected) in vec![
-                ("0", "1", "0"),
-                ("1", "1", "1.000000000"), // incremental frac is already multiple of 9
-                ("1", "1", "1.000000000"),
-                ("1", "2", "0.500000000"),
-                ("2", "1", "2.000000000"),
-                ("1", "-1", "-1.000000000"),
-                ("-1", "1", "-1.000000000"),
-                ("-1", "-100", "0.010000000"),
-                ("100", "1", "100.000000000"),
-                ("100", "100", "1.000000000"),
-                ("0.000000002", "1", "0.000000002000000000"),
-                ("1.0", "2", "0.500000000"),
-                ("1.0", "2.0", "0.500000000000000000"), // two fractional units
-                ("-1", "0.01", "-100.000000000"),
-                ("0.27", "0.3", "0.900000000000000000"),
-                ("-0.3", "-0.2", "1.500000000000000000"),
-                ("0.3", "0.7", "0.428571428571428571"),
-                ("0.6", "0.9", "0.666666666666666666"),
-                ("-0.3", "0.2", "-1.500000000000000000"),
-                ("1000000000.1", "7", "142857142.871428571"),
-                ("1000000000.1", "9", "111111111.122222222"),
-                ("101000000000.1", "7", "14428571428.585714285"),
-                ("101000000000.1", "7.1", "14225352112.690140845070422535"),
-                ("101000000000.1", "5", "20200000000.020000000"),
-                ("101000000000.1", "5.0", "20200000000.020000000000000000"),
-                ("100.10000000001", "7", "14.300000000001428571"),
-                ("100.10000000001", "7.0", "14.300000000001428571428571428"),
-                ("100.1", "7.0000000001", "14.299999999795714285717204081"),
-                ("205.6", "9.5000000001", "21.642105262930083102495472809"),
-                ("2000000005.1", "7.5000000001", "266666667.343111111102091851851972108"),
-                ("1.2", "0.7", "1.714285714285714285"),
-                ("1.22", "0.77", "1.584415584415584415"),
-                ("1.222", "0.777", "1.572715572715572715"),
-                ("1.2222", "0.7777", "1.571557155715571557"),
-                ("1.22222", "0.77777", "1.571441428700001285"),
-                ("1.222222", "0.777777", "1.571429857144142858"),
-                ("1.2222222", "0.7777777", "1.571428700000012857"),
-                ("1.22222222", "0.77777777", "1.571428584285714414285715571"),
-                ("1.222222222", "0.777777777", "1.571428572714285715571428572"),
-                ("9.8", "1", "9.800000000"),
-                ("98.7", "1.2", "82.250000000000000000"),
-                ("987.6", "12.3", "80.292682926829268292"),
-                ("9876.5", "123.4", "80.036466774716369529"),
-                ("98765.4", "1234.5", "80.004374240583232077"),
-                ("987654.3", "12345.6", "80.000510303265940902"),
-                ("9876543.2", "123456.7", "80.000058320042573631"),
-                ("98765432.1", "1234567.8", "80.000006561000538002"),
-                ("987654321.1", "12345678.9", "80.000000737100006707"),
-                ("987654321.12", "12345678.99", "80.000000155520000281"),
-                ("987654321.123", "12345678.998", "80.000000103923000120"),
-                ("987654321.1234", "12345678.9987", "80.000000099419400109"),
-                ("987654321.12345", "12345678.99876", "80.000000099034650108"),
-                ("987654321.123456", "12345678.998765", "80.000000099002736108"),
-                ("987654321.1234567", "12345678.9987654", "80.000000099000200808"),
-                ("987654321.12345678", "12345678.99876543", "80.000000099000012888900031007"),
-                ("987654321.123456789", "12345678.998765432", "80.000000099000000657900001515"),
-                ("-9.8", "1", "-9.800000000"),
-                ("-98.7", "1.2", "-82.250000000000000000"),
-                ("-987.6", "12.3", "-80.292682926829268292"),
-                ("-9876.5", "123.4", "-80.036466774716369529"),
-                ("-98765.4", "1234.5", "-80.004374240583232077"),
-                ("-987654.3", "12345.6", "-80.000510303265940902"),
-                ("-9876543.2", "123456.7", "-80.000058320042573631"),
-                ("-98765432.1", "1234567.8", "-80.000006561000538002"),
-                ("-987654321.1", "12345678.9", "-80.000000737100006707"),
-                ("-987654321.12", "12345678.99", "-80.000000155520000281"),
-                ("-987654321.123", "12345678.998", "-80.000000103923000120"),
-                ("-987654321.1234", "12345678.9987", "-80.000000099419400109"),
-                ("-987654321.12345", "12345678.99876", "-80.000000099034650108"),
-                ("-987654321.123456", "12345678.998765", "-80.000000099002736108"),
-                ("-987654321.1234567", "12345678.9987654", "-80.000000099000200808"),
-                ("-987654321.12345678", "12345678.99876543", "-80.000000099000012888900031007"),
-                ("-987654321.123456789", "12345678.998765432", "-80.000000099000000657900001515"),
-                ("0.170511", "-353390023.459963", "-0.000000000482500887"),
-                ("0.170511", "-353390023", "-0.000000000482500888"),
-                ("0.1", "300000000", "0.000000000"),
-                ("0.1", "300000000.0", "0.000000000333333333"),
-                ("0.1", "3000000000", "0.000000000"),
-                ("0.1", "3000000000.0", "0.000000000033333333"),
-                ("0.0000000001", "300000000", "0.000000000000000000"),
-                ("0.0000000001", "300000000.0", "0.000000000000000000333333333"),
-                ("0.0000000001", "3000000000", "0.000000000000000000"),
-                ("0.0000000001", "3000000000.0", "0.000000000000000000033333333"),
-                ("1", "300000000", "0.000000003"),
-                ("1", "300000000.0", "0.000000003"),
-                ("1", "3000000000", "0.000000000"),
-                ("1", "3000000000.0", "0.000000000"),
-                ("1.0", "300000000", "0.000000003"),
-                ("1.0", "300000000.0", "0.000000003333333333"),
-                ("1.0", "3000000000", "0.000000000"),
-                ("1.0", "3000000000.0", "0.000000000333333333"),
-                ("0.4", "0.000000003", "133333333.333333333333333333"),
-                ("0.4", "0.0000000003", "1333333333.333333333333333333333333333"),
-                ("0.2", "0.000000003", "66666666.666666666666666666"),
-                ("0.2", "0.0000000003", "666666666.666666666666666666666666666"),
-                ("400000000", "300000000", "1.333333333"),
-                ("400000000.0", "300000000.0", "1.333333333333333333"),
-                ("4000000000", "3000000000", "1.333333333"),
-                ("4000000000.0", "3000000000.0", "1.333333333333333333"),
-                ("200000000", "300000000", "0.666666666"),
-                ("200000000.0", "300000000.0", "0.666666666666666666"),
-                ("2000000000", "3000000000", "0.666666666"),
-                ("2000000000.0", "3000000000.0", "0.666666666666666666"),
-                ("400000000", "0.000000003", "133333333333333333.333333333333333333"),
-                ("4000000000", "0.000000003", "1333333333333333333.333333333333333333"),
-                ("1", "500000000.1", "0.000000001"),
+            ("0", "1", "0"),
+            ("1", "1", "1.000000000"), // incremental frac is already multiple of 9
+            ("1", "1", "1.000000000"),
+            ("1", "2", "0.500000000"),
+            ("2", "1", "2.000000000"),
+            ("1", "-1", "-1.000000000"),
+            ("-1", "1", "-1.000000000"),
+            ("-1", "-100", "0.010000000"),
+            ("100", "1", "100.000000000"),
+            ("100", "100", "1.000000000"),
+            ("0.000000002", "1", "0.000000002000000000"),
+            ("1.0", "2", "0.500000000"),
+            ("1.0", "2.0", "0.500000000000000000"), // two fractional units
+            ("-1", "0.01", "-100.000000000"),
+            ("0.27", "0.3", "0.900000000000000000"),
+            ("-0.3", "-0.2", "1.500000000000000000"),
+            ("0.3", "0.7", "0.428571428571428571"),
+            ("0.6", "0.9", "0.666666666666666666"),
+            ("-0.3", "0.2", "-1.500000000000000000"),
+            ("1000000000.1", "7", "142857142.871428571"),
+            ("1000000000.1", "9", "111111111.122222222"),
+            ("101000000000.1", "7", "14428571428.585714285"),
+            ("101000000000.1", "7.1", "14225352112.690140845070422535"),
+            ("101000000000.1", "5", "20200000000.020000000"),
+            ("101000000000.1", "5.0", "20200000000.020000000000000000"),
+            ("100.10000000001", "7", "14.300000000001428571"),
+            ("100.10000000001", "7.0", "14.300000000001428571428571428"),
+            ("100.1", "7.0000000001", "14.299999999795714285717204081"),
+            ("205.6", "9.5000000001", "21.642105262930083102495472809"),
+            (
+                "2000000005.1",
+                "7.5000000001",
+                "266666667.343111111102091851851972108",
+            ),
+            ("1.2", "0.7", "1.714285714285714285"),
+            ("1.22", "0.77", "1.584415584415584415"),
+            ("1.222", "0.777", "1.572715572715572715"),
+            ("1.2222", "0.7777", "1.571557155715571557"),
+            ("1.22222", "0.77777", "1.571441428700001285"),
+            ("1.222222", "0.777777", "1.571429857144142858"),
+            ("1.2222222", "0.7777777", "1.571428700000012857"),
+            ("1.22222222", "0.77777777", "1.571428584285714414285715571"),
+            (
+                "1.222222222",
+                "0.777777777",
+                "1.571428572714285715571428572",
+            ),
+            ("9.8", "1", "9.800000000"),
+            ("98.7", "1.2", "82.250000000000000000"),
+            ("987.6", "12.3", "80.292682926829268292"),
+            ("9876.5", "123.4", "80.036466774716369529"),
+            ("98765.4", "1234.5", "80.004374240583232077"),
+            ("987654.3", "12345.6", "80.000510303265940902"),
+            ("9876543.2", "123456.7", "80.000058320042573631"),
+            ("98765432.1", "1234567.8", "80.000006561000538002"),
+            ("987654321.1", "12345678.9", "80.000000737100006707"),
+            ("987654321.12", "12345678.99", "80.000000155520000281"),
+            ("987654321.123", "12345678.998", "80.000000103923000120"),
+            ("987654321.1234", "12345678.9987", "80.000000099419400109"),
+            ("987654321.12345", "12345678.99876", "80.000000099034650108"),
+            (
+                "987654321.123456",
+                "12345678.998765",
+                "80.000000099002736108",
+            ),
+            (
+                "987654321.1234567",
+                "12345678.9987654",
+                "80.000000099000200808",
+            ),
+            (
+                "987654321.12345678",
+                "12345678.99876543",
+                "80.000000099000012888900031007",
+            ),
+            (
+                "987654321.123456789",
+                "12345678.998765432",
+                "80.000000099000000657900001515",
+            ),
+            ("-9.8", "1", "-9.800000000"),
+            ("-98.7", "1.2", "-82.250000000000000000"),
+            ("-987.6", "12.3", "-80.292682926829268292"),
+            ("-9876.5", "123.4", "-80.036466774716369529"),
+            ("-98765.4", "1234.5", "-80.004374240583232077"),
+            ("-987654.3", "12345.6", "-80.000510303265940902"),
+            ("-9876543.2", "123456.7", "-80.000058320042573631"),
+            ("-98765432.1", "1234567.8", "-80.000006561000538002"),
+            ("-987654321.1", "12345678.9", "-80.000000737100006707"),
+            ("-987654321.12", "12345678.99", "-80.000000155520000281"),
+            ("-987654321.123", "12345678.998", "-80.000000103923000120"),
+            ("-987654321.1234", "12345678.9987", "-80.000000099419400109"),
+            (
+                "-987654321.12345",
+                "12345678.99876",
+                "-80.000000099034650108",
+            ),
+            (
+                "-987654321.123456",
+                "12345678.998765",
+                "-80.000000099002736108",
+            ),
+            (
+                "-987654321.1234567",
+                "12345678.9987654",
+                "-80.000000099000200808",
+            ),
+            (
+                "-987654321.12345678",
+                "12345678.99876543",
+                "-80.000000099000012888900031007",
+            ),
+            (
+                "-987654321.123456789",
+                "12345678.998765432",
+                "-80.000000099000000657900001515",
+            ),
+            ("0.170511", "-353390023.459963", "-0.000000000482500887"),
+            ("0.170511", "-353390023", "-0.000000000482500888"),
+            ("0.1", "300000000", "0.000000000"),
+            ("0.1", "300000000.0", "0.000000000333333333"),
+            ("0.1", "3000000000", "0.000000000"),
+            ("0.1", "3000000000.0", "0.000000000033333333"),
+            ("0.0000000001", "300000000", "0.000000000000000000"),
+            (
+                "0.0000000001",
+                "300000000.0",
+                "0.000000000000000000333333333",
+            ),
+            ("0.0000000001", "3000000000", "0.000000000000000000"),
+            (
+                "0.0000000001",
+                "3000000000.0",
+                "0.000000000000000000033333333",
+            ),
+            ("1", "300000000", "0.000000003"),
+            ("1", "300000000.0", "0.000000003"),
+            ("1", "3000000000", "0.000000000"),
+            ("1", "3000000000.0", "0.000000000"),
+            ("1.0", "300000000", "0.000000003"),
+            ("1.0", "300000000.0", "0.000000003333333333"),
+            ("1.0", "3000000000", "0.000000000"),
+            ("1.0", "3000000000.0", "0.000000000333333333"),
+            ("0.4", "0.000000003", "133333333.333333333333333333"),
+            (
+                "0.4",
+                "0.0000000003",
+                "1333333333.333333333333333333333333333",
+            ),
+            ("0.2", "0.000000003", "66666666.666666666666666666"),
+            (
+                "0.2",
+                "0.0000000003",
+                "666666666.666666666666666666666666666",
+            ),
+            ("400000000", "300000000", "1.333333333"),
+            ("400000000.0", "300000000.0", "1.333333333333333333"),
+            ("4000000000", "3000000000", "1.333333333"),
+            ("4000000000.0", "3000000000.0", "1.333333333333333333"),
+            ("200000000", "300000000", "0.666666666"),
+            ("200000000.0", "300000000.0", "0.666666666666666666"),
+            ("2000000000", "3000000000", "0.666666666"),
+            ("2000000000.0", "3000000000.0", "0.666666666666666666"),
+            (
+                "400000000",
+                "0.000000003",
+                "133333333333333333.333333333333333333",
+            ),
+            (
+                "4000000000",
+                "0.000000003",
+                "1333333333333333333.333333333333333333",
+            ),
+            ("1", "500000000.1", "0.000000001"),
         ] {
             assert!(fd1.from_ascii_str(input1, true).is_ok());
             assert!(fd2.from_ascii_str(input2, true).is_ok());
             assert!(FixedDecimal::div_to(&fd1, &fd2, &mut fd3, DIV_INCR_FRAC).is_ok());
             let actual = fd3.to_string(-1);
             println!("fd3={:?}", fd3);
-            println!("{} / {} = {} , intg={}, frac={}", fd1.to_string(-1), fd2.to_string(-1), actual, fd3.intg(), fd3.frac());
+            println!(
+                "{} / {} = {} , intg={}, frac={}",
+                fd1.to_string(-1),
+                fd2.to_string(-1),
+                actual,
+                fd3.intg(),
+                fd3.frac()
+            );
             assert_eq!(&actual[..], expected);
             let actual = (fd1.clone() / fd2.clone()).to_string(-1);
             assert_eq!(&actual[..], expected);
@@ -1215,8 +1404,16 @@ mod tests {
             ("987654321.12345", "1.234567899876", "1.222650000000"),
             ("987654321.123456", "1.2345678998765", "1.2222560000000"),
             ("987654321.1234567", "1.23456789987654", "1.22222470000000"),
-            ("987654321.12345678", "1.234567899876543", "1.222222380000000"),
-            ("987654321.123456789", "1.2345678998765432", "1.2222222290000000"),
+            (
+                "987654321.12345678",
+                "1.234567899876543",
+                "1.222222380000000",
+            ),
+            (
+                "987654321.123456789",
+                "1.2345678998765432",
+                "1.2222222290000000",
+            ),
             ("-9.8", "1", "-0.8"),
             ("-98.7", "1.2", "-0.3"),
             ("-987.6", "1.23", "-1.14"),
@@ -1231,9 +1428,21 @@ mod tests {
             ("-987654321.1234", "1.23456789987", "-1.22740000000"),
             ("-987654321.12345", "1.234567899876", "-1.222650000000"),
             ("-987654321.123456", "1.2345678998765", "-1.2222560000000"),
-            ("-987654321.1234567", "1.23456789987654", "-1.22222470000000"),
-            ("-987654321.12345678", "1.234567899876543", "-1.222222380000000"),
-            ("-987654321.123456789", "1.2345678998765432", "-1.2222222290000000"),
+            (
+                "-987654321.1234567",
+                "1.23456789987654",
+                "-1.22222470000000",
+            ),
+            (
+                "-987654321.12345678",
+                "1.234567899876543",
+                "-1.222222380000000",
+            ),
+            (
+                "-987654321.123456789",
+                "1.2345678998765432",
+                "-1.2222222290000000",
+            ),
             ("0.170511", "-353390023.459963", "0.170511"),
             ("-353390023.459963", "0.170511", "-0.060946"),
             ("0.170511", "-353390023", "0.170511"),
@@ -1252,7 +1461,14 @@ mod tests {
             assert!(FixedDecimal::rem_to(&fd1, &fd2, &mut fd3).is_ok());
             let actual = fd3.to_string(-1);
             println!("fd3={:?}", fd3);
-            println!("{} % {} = {} , intg={}, frac={}", fd1.to_string(-1), fd2.to_string(-1), actual, fd3.intg(), fd3.frac());
+            println!(
+                "{} % {} = {} , intg={}, frac={}",
+                fd1.to_string(-1),
+                fd2.to_string(-1),
+                actual,
+                fd3.intg(),
+                fd3.frac()
+            );
             assert_eq!(&actual[..], expected);
             let actual = (fd1.clone() % fd2.clone()).to_string(-1);
             assert_eq!(&actual[..], expected);

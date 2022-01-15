@@ -11,12 +11,14 @@ impl PartialEq for FixedDecimal {
 impl Eq for FixedDecimal {}
 
 impl PartialOrd for FixedDecimal {
+    #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl Ord for FixedDecimal {
+    #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
         let lneg = self.is_neg();
         let rneg = other.is_neg();
@@ -36,21 +38,35 @@ impl Ord for FixedDecimal {
 #[inline]
 pub(crate) fn cmp_abs(lhs: &FixedDecimal, rhs: &FixedDecimal) -> Ordering {
     cmp_abs_lsu(
-        lhs.intg_units() as isize, lhs.frac_units() as isize, &lhs.lsu[..], 
-        rhs.intg_units() as isize, rhs.frac_units() as isize, &rhs.lsu[..])
+        lhs.intg_units() as isize,
+        lhs.frac_units() as isize,
+        &lhs.lsu[..],
+        rhs.intg_units() as isize,
+        rhs.frac_units() as isize,
+        &rhs.lsu[..],
+    )
 }
 
-pub(crate) fn cmp_abs_lsu(mut liu: isize, lfu: isize, llsu: &[i32], mut riu: isize, rfu: isize, rlsu: &[i32]) -> Ordering {
+pub(crate) fn cmp_abs_lsu(
+    mut liu: isize,
+    lfu: isize,
+    llsu: &[i32],
+    mut riu: isize,
+    rfu: isize,
+    rlsu: &[i32],
+) -> Ordering {
     let mut i = liu + lfu - 1;
     let mut j = riu + rfu - 1;
-    while liu > 0 && liu > riu { // lhs has more integral units
+    while liu > 0 && liu > riu {
+        // lhs has more integral units
         if llsu[i as usize] > 0 {
             return Ordering::Greater;
         }
         liu -= 1;
         i -= 1;
     }
-    while riu > 0 && riu > liu { // rhs has more integral units
+    while riu > 0 && riu > liu {
+        // rhs has more integral units
         if rlsu[j as usize] > 0 {
             return Ordering::Less;
         }
@@ -70,7 +86,8 @@ pub(crate) fn cmp_abs_lsu(mut liu: isize, lfu: isize, llsu: &[i32], mut riu: isi
         i -= 1;
         j -= 1;
     }
-    while i >= 0 { // lhs still has units
+    while i >= 0 {
+        // lhs still has units
         if llsu[i as usize] > 0 {
             return Ordering::Greater;
         }
@@ -80,7 +97,7 @@ pub(crate) fn cmp_abs_lsu(mut liu: isize, lfu: isize, llsu: &[i32], mut riu: isi
         if rlsu[j as usize] > 0 {
             return Ordering::Less;
         }
-        j-= 1;
+        j -= 1;
     }
     // no units to compare so they are equal
     Ordering::Equal
@@ -117,15 +134,51 @@ mod tests {
             ("999999999", "1000000000", Ordering::Less),
             ("1.0000000000000000000000000001", "1", Ordering::Greater),
             ("1", "1.0000000000000000000000000001", Ordering::Less),
-            ("1.0000000010000000000000000001", "1.0000000010000000000000000001", Ordering::Equal),
-            ("1.0000000010000000000000000001", "1.0000000010000000000000000002", Ordering::Less),
-            ("1.0000000010000000000000000002", "1.0000000010000000000000000001", Ordering::Greater),
-            ("1.0000000010000000010000000001", "1.0000000010000000010000000001", Ordering::Equal),
-            ("1.0000000010000000010000000001", "1.0000000010000000010000000002", Ordering::Less),
-            ("1.0000000010000000010000000002", "1.0000000010000000010000000001", Ordering::Greater),
-            ("100000000000000000000000000", "100000000000000000000000000", Ordering::Equal),
-            ("100000000000000000000000001", "100000000000000000000000000", Ordering::Greater),
-            ("100000000000000000000000000", "100000000000000000000000001", Ordering::Less),
+            (
+                "1.0000000010000000000000000001",
+                "1.0000000010000000000000000001",
+                Ordering::Equal,
+            ),
+            (
+                "1.0000000010000000000000000001",
+                "1.0000000010000000000000000002",
+                Ordering::Less,
+            ),
+            (
+                "1.0000000010000000000000000002",
+                "1.0000000010000000000000000001",
+                Ordering::Greater,
+            ),
+            (
+                "1.0000000010000000010000000001",
+                "1.0000000010000000010000000001",
+                Ordering::Equal,
+            ),
+            (
+                "1.0000000010000000010000000001",
+                "1.0000000010000000010000000002",
+                Ordering::Less,
+            ),
+            (
+                "1.0000000010000000010000000002",
+                "1.0000000010000000010000000001",
+                Ordering::Greater,
+            ),
+            (
+                "100000000000000000000000000",
+                "100000000000000000000000000",
+                Ordering::Equal,
+            ),
+            (
+                "100000000000000000000000001",
+                "100000000000000000000000000",
+                Ordering::Greater,
+            ),
+            (
+                "100000000000000000000000000",
+                "100000000000000000000000001",
+                Ordering::Less,
+            ),
         ] {
             assert!(fd1.from_ascii_str(input1, true).is_ok());
             assert!(fd2.from_ascii_str(input2, true).is_ok());
