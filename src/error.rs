@@ -10,4 +10,6 @@ pub enum Error {
     DivisionByZero,
     #[error("Decimal overflow")]
     Overflow,
+    #[error("Exceeds range of conversion target")]
+    ExceedsConversionTargetRange,
 }
