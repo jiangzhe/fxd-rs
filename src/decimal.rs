@@ -1,5 +1,6 @@
 use crate::utils::get_units;
 use std::hash::{Hash, Hasher};
+use crate::error::{Result, Error};
 
 pub const MAX_UNITS: usize = 9;
 pub const MAX_FRAC: usize = 30;
@@ -8,10 +9,20 @@ pub const DIGITS_PER_UNIT: usize = 9;
 pub const UNIT: i32 = 1_000_000_000;
 pub const HALF_UNIT: i32 = UNIT / 2;
 pub const MAX_FRAC_UNITS: usize = (MAX_FRAC + DIGITS_PER_UNIT - 1) / DIGITS_PER_UNIT;
+pub const MAX_I64: FixedDecimal = FixedDecimal {
+    intg: 19 as i8,
+    frac: 0,
+    lsu: [854775807, 223372036, 9, 0, 0, 0, 0, 0, 0],
+};
 pub const MIN_I64: FixedDecimal = FixedDecimal {
     intg: (19 | 0x80) as i8,
     frac: 0,
     lsu: [854775808, 223372036, 9, 0, 0, 0, 0, 0, 0],
+};
+pub const MAX_U64: FixedDecimal = FixedDecimal {
+    intg: 20 as i8,
+    frac: 0,
+    lsu: [709551615, 446744073, 18, 0, 0, 0, 0, 0, 0],
 };
 
 /// FixedDecimal is an implementation of "exact number" type defined
@@ -113,6 +124,44 @@ impl FixedDecimal {
     #[inline]
     fn reset_units(&mut self) {
         self.lsu.iter_mut().for_each(|n| *n = 0);
+    }
+
+    #[inline]
+    pub fn as_i64(&self) -> Result<i64> {
+        if self < &MIN_I64 || self > &MAX_I64 {
+            return Err(Error::ExceedsConversionTargetRange)
+        }
+        if self.frac_units() > 0 {
+            let mut target = Self::zero();
+            self.round_to(&mut target, 0);
+            return Ok(target.lsu_to_i64())
+        }
+        Ok(self.lsu_to_i64())
+    }
+
+    fn lsu_to_i64(&self) -> i64 {
+        if self.is_neg() {
+            -self.lsu[0] as i64 - self.lsu[1] as i64 * UNIT as i64 - self.lsu[2] as i64 * UNIT as i64 * UNIT as i64
+        } else {
+            self.lsu[0] as i64 + self.lsu[1] as i64 * UNIT as i64 + self.lsu[2] as i64 * UNIT as i64 * UNIT as i64
+        }
+    }
+
+    #[inline]
+    pub fn as_u64(&self) -> Result<u64> {
+        if self.is_neg() || self > &MAX_U64 {
+            return Err(Error::ExceedsConversionTargetRange)
+        }
+        if self.frac_units() > 0 {
+            let mut target = Self::zero();
+            self.round_to(&mut target, 0);
+            return Ok(target.lsu_to_u64())
+        }
+        Ok(self.lsu_to_u64())
+    }
+
+    fn lsu_to_u64(&self) -> u64 {
+        self.lsu[0] as u64 + self.lsu[1] as u64 * UNIT as u64 + self.lsu[2] as u64 * UNIT as u64 * UNIT as u64
     }
 }
 
@@ -230,6 +279,37 @@ mod tests {
     }
 
     #[test]
+    fn test_to_i64() {
+        // success
+        for (s, i) in vec![
+            ("0", 0i64),
+            ("1", 1),
+            ("1.1", 1),
+            ("1.5", 2),
+            ("3.8", 4),
+            ("-1.2", -1),
+            ("-5.9", -6),
+            ("100", 100),
+            ("12345123456789", 12345123456789),
+            ("-9223372036854775808", -9223372036854775808),
+            ("9223372036854775807", 9223372036854775807),
+        ] {
+            let fd = FixedDecimal::from_str(s).unwrap();
+            let res = fd.as_i64().unwrap();
+            assert_eq!(res, i)
+        }
+        // fail
+        for s in vec![
+            "-9223372036854775809",
+            "9223372036854775808",
+            "10000000000000000000000",
+        ] {
+            let fd = FixedDecimal::from_str(s).unwrap();
+            assert!(fd.as_i64().is_err());
+        }
+    }
+
+    #[test]
     fn test_from_u64() {
         for (i, s) in vec![
             (0u64, "0"),
@@ -242,6 +322,35 @@ mod tests {
             let fd2 = FixedDecimal::from_str(s).unwrap();
             assert_eq!(fd1, fd2);
             println!("{:?}", fd1);
+        }
+    }
+
+    #[test]
+    fn test_to_u64() {
+        // success
+        for (s, i) in vec![
+            ("0", 0u64),
+            ("1", 1),
+            ("1.1", 1),
+            ("1.5", 2),
+            ("3.8", 4),
+            ("100", 100),
+            ("12345123456789", 12345123456789),
+            ("9223372036854775807", 9223372036854775807),
+            ("18446744073709551615", 18446744073709551615),
+        ] {
+            let fd = FixedDecimal::from_str(s).unwrap();
+            let res = fd.as_u64().unwrap();
+            assert_eq!(res, i)
+        }
+        // fail
+        for s in vec![
+            "-1",
+            "18446744073709551616",
+            "10000000000000000000000",
+        ] {
+            let fd = FixedDecimal::from_str(s).unwrap();
+            assert!(fd.as_u64().is_err());
         }
     }
 
