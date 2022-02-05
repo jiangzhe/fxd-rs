@@ -8,6 +8,11 @@ pub const DIGITS_PER_UNIT: usize = 9;
 pub const UNIT: i32 = 1_000_000_000;
 pub const HALF_UNIT: i32 = UNIT / 2;
 pub const MAX_FRAC_UNITS: usize = (MAX_FRAC + DIGITS_PER_UNIT - 1) / DIGITS_PER_UNIT;
+pub const MIN_I64: FixedDecimal = FixedDecimal {
+    intg: (19 | 0x80) as i8,
+    frac: 0,
+    lsu: [854775808, 223372036, 9, 0, 0, 0, 0, 0, 0],
+};
 
 /// FixedDecimal is an implementation of "exact number" type defined
 /// SQL standard.
@@ -132,8 +137,41 @@ impl Hash for FixedDecimal {
     }
 }
 
+impl From<i64> for FixedDecimal {
+    fn from(src: i64) -> Self {
+        if src == i64::MIN {
+            return MIN_I64.clone();
+        }
+        if src < 0 {
+            let mut fd = FixedDecimal::from(-src as u64);
+            fd.set_neg();
+            fd
+        } else {
+            FixedDecimal::from(src as u64)
+        }
+    }
+}
+
+impl From<u64> for FixedDecimal {
+    fn from(mut src: u64) -> Self {
+        let mut fd = FixedDecimal::zero();
+        let mut i = 0;
+        while src != 0 {
+            let q = src / UNIT as u64;
+            let r = src - q * UNIT as u64;
+            fd.lsu[i] = r as i32;
+            i += 1;
+            src = q;
+        }
+        fd.intg = (i * DIGITS_PER_UNIT) as i8;
+        fd
+    }
+}
+
 #[cfg(test)]
 mod tests {
+
+    use std::str::FromStr;
 
     use super::*;
 
@@ -168,6 +206,42 @@ mod tests {
             let fd1: FixedDecimal = s1.parse().unwrap();
             let fd2: FixedDecimal = s2.parse().unwrap();
             assert_eq!(decimal_hash(&fd1), decimal_hash(&fd2));
+        }
+    }
+
+    #[test]
+    fn test_from_i64() {
+        for (i, s) in vec![
+            (0i64, "0"),
+            (1, "1"),
+            (-1, "-1"),
+            (100, "100"),
+            (-100, "-100"),
+            (12345123456789, "12345123456789"),
+            (-12345123456789, "-12345123456789"),
+            (-9223372036854775808, "-9223372036854775808"),
+            (9223372036854775807, "9223372036854775807"),
+        ] {
+            let fd1 = FixedDecimal::from(i);
+            let fd2 = FixedDecimal::from_str(s).unwrap();
+            assert_eq!(fd1, fd2);
+            println!("{:?}", fd1);
+        }
+    }
+
+    #[test]
+    fn test_from_u64() {
+        for (i, s) in vec![
+            (0u64, "0"),
+            (1, "1"),
+            (100, "100"),
+            (12345123456789, "12345123456789"),
+            (18446744073709551615, "18446744073709551615"),
+        ] {
+            let fd1 = FixedDecimal::from(i);
+            let fd2 = FixedDecimal::from_str(s).unwrap();
+            assert_eq!(fd1, fd2);
+            println!("{:?}", fd1);
         }
     }
 
